@@ -35,6 +35,13 @@ cd "$INSTALL_DIR"
 echo -e "${GREEN}✓ Found installation directory${NC}"
 echo ""
 
+# Pull latest changes
+echo -e "${BLUE}Pulling latest updates...${NC}"
+git pull origin claude/neonize-emergency-analysis-K1wGV 2>/dev/null || {
+    echo -e "${YELLOW}⚠ Could not pull updates (continuing anyway)${NC}"
+}
+echo ""
+
 # Check docker access
 if ! docker ps &> /dev/null; then
     echo -e "${YELLOW}⚠ Docker permission issue detected${NC}"
