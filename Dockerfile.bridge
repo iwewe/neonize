@@ -1,0 +1,49 @@
+# ==============================================================================
+# Dockerfile untuk Neonize Bridge API
+# ==============================================================================
+
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libmagic1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install neonize
+RUN pip install --no-cache-dir neonize
+
+# Install additional dependencies for the bridge
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn[standard] \
+    httpx \
+    pydantic \
+    python-dotenv
+
+# Copy application code
+COPY examples/n8n_bridge.py .
+
+# Create directories
+RUN mkdir -p /app/sessions /app/logs
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Run the application
+CMD ["uvicorn", "n8n_bridge:app", "--host", "0.0.0.0", "--port", "8000"]

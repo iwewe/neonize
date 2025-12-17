@@ -1,0 +1,200 @@
+version: '3.8'
+
+# ==============================================================================
+# Docker Compose untuk Emergency Response Chatbot
+# ==============================================================================
+#
+# Stack yang di-deploy:
+# - PostgreSQL (Database untuk n8n & application data)
+# - n8n (Workflow automation)
+# - Neonize Bridge (FastAPI REST API)
+# - Grafana (Optional: Monitoring dashboard)
+#
+# Usage:
+#   docker-compose -f docker-compose.emergency.yml up -d
+#
+# ==============================================================================
+
+services:
+
+  # ============================================================================
+  # PostgreSQL Database
+  # ============================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: emergency_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: emergency_db
+      POSTGRES_USER: emergency
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
+      POSTGRES_MULTIPLE_DATABASES: n8n_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U emergency"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - emergency_network
+
+  # ============================================================================
+  # n8n Workflow Automation
+  # ============================================================================
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: emergency_n8n
+    restart: unless-stopped
+    environment:
+      # Database
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n_db
+      - DB_POSTGRESDB_USER=emergency
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-changeme123}
+
+      # n8n Configuration
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-changeme123}
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678}
+
+      # Timezone
+      - GENERIC_TIMEZONE=Asia/Jakarta
+      - TZ=Asia/Jakarta
+
+      # Security
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-changeme}
+
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n_workflows:/home/node/.n8n/workflows:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - emergency_network
+
+  # ============================================================================
+  # Neonize Bridge API
+  # ============================================================================
+  neonize_bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile.bridge
+    container_name: emergency_neonize
+    restart: unless-stopped
+    environment:
+      # Neonize
+      - SESSION_NAME=${SESSION_NAME:-emergency_bot}
+
+      # Database
+      - DATABASE_URL=postgresql://emergency:${POSTGRES_PASSWORD:-changeme123}@postgres:5432/emergency_db
+
+      # n8n Integration
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook/emergency
+
+      # Security
+      - API_KEY=${API_KEY:-your-secret-api-key}
+
+      # Timezone
+      - TZ=Asia/Jakarta
+
+    ports:
+      - "8000:8000"
+    volumes:
+      # Session data (persistent WhatsApp login)
+      - neonize_sessions:/app/sessions
+
+      # Logs
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - n8n
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - emergency_network
+
+  # ============================================================================
+  # Grafana Dashboard (Optional)
+  # ============================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: emergency_grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - postgres
+    networks:
+      - emergency_network
+
+  # ============================================================================
+  # Redis (Optional: untuk caching & rate limiting)
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: emergency_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - emergency_network
+
+# ==============================================================================
+# Networks
+# ==============================================================================
+networks:
+  emergency_network:
+    driver: bridge
+
+# ==============================================================================
+# Volumes
+# ==============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  n8n_data:
+    driver: local
+  neonize_sessions:
+    driver: local
+  grafana_data:
+    driver: local
+  redis_data:
+    driver: local

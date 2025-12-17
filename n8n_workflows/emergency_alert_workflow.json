@@ -1,0 +1,317 @@
+{
+  "name": "Emergency Alert Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "emergency",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook - Emergency Report",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "emergency-report"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.event_type }}",
+              "operation": "equals",
+              "value2": "message_received"
+            }
+          ]
+        }
+      },
+      "id": "if-1",
+      "name": "IF Message Received",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract message data\nconst data = $input.item.json.data;\nconst text = data.text || '';\nconst textLower = text.toLowerCase();\n\n// Emergency keywords\nconst keywords = ['banjir', 'gempa', 'kebakaran', 'longsor', 'tsunami', 'angin'];\n\n// Check if emergency\nconst isEmergency = keywords.some(keyword => textLower.includes(keyword));\n\n// Extract severity\nlet severity = 1;\nif (textLower.includes('parah') || textLower.includes('besar')) severity = 4;\nelse if (textLower.includes('lumayan') || textLower.includes('sedang')) severity = 3;\nelse if (textLower.includes('kecil')) severity = 2;\n\n// Extract category\nlet category = 'UNKNOWN';\nif (textLower.includes('banjir')) category = 'BANJIR';\nelse if (textLower.includes('gempa')) category = 'GEMPA';\nelse if (textLower.includes('kebakaran')) category = 'KEBAKARAN';\nelse if (textLower.includes('longsor')) category = 'LONGSOR';\nelse if (textLower.includes('tsunami')) category = 'TSUNAMI';\n\nreturn {\n  json: {\n    is_emergency: isEmergency,\n    category: category,\n    severity: severity,\n    sender: data.sender,\n    sender_name: data.sender_name,\n    text: text,\n    timestamp: data.timestamp\n  }\n};"
+      },
+      "id": "code-1",
+      "name": "Analyze Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_emergency }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-2",
+      "name": "IF Emergency",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO emergency_reports (reporter_jid, reporter_name, message, category, severity, created_at)\nVALUES ($1, $2, $3, $4, $5, NOW())\nRETURNING id, created_at;",
+        "options": {}
+      },
+      "id": "postgres-1",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.2,
+      "position": [1050, 200],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Emergency PostgreSQL"
+        }
+      },
+      "parameters": {
+        "additionalFields": {
+          "values": [
+            {
+              "name": "reporter_jid",
+              "value": "={{ $json.sender }}"
+            },
+            {
+              "name": "reporter_name",
+              "value": "={{ $json.sender_name }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "category",
+              "value": "={{ $json.category }}"
+            },
+            {
+              "name": "severity",
+              "value": "={{ $json.severity }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://neonize_bridge:8000/send-message",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $env.API_KEY }}"
+            }
+          ]
+        },
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"phone\": \"{{ $json.sender.replace('@s.whatsapp.net', '') }}\",\n  \"message\": \"✅ LAPORAN DITERIMA\\n\\nID: {{ $('Save to Database').item.json.id }}\\nKategori: {{ $json.category }}\\nTingkat: {{ $json.severity }}/5\\n\\nTim sedang memverifikasi laporan Anda.\\n\\nTerima kasih! 🙏\"\n}"
+      },
+      "id": "http-1",
+      "name": "Send Confirmation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.severity }}",
+              "operation": "largerEqual",
+              "value2": 4
+            }
+          ]
+        }
+      },
+      "id": "if-3",
+      "name": "IF High Severity",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://neonize_bridge:8000/send-broadcast",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $env.API_KEY }}"
+            }
+          ]
+        },
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"phones\": [\"628123456789\", \"628987654321\"],\n  \"message\": \"🚨 ALERT HIGH SEVERITY\\n\\nKategori: {{ $json.category }}\\nLaporan dari: {{ $json.sender_name }}\\n\\nSegera cek dashboard!\\n\\nID: {{ $('Save to Database').item.json.id }}\"\n}"
+      },
+      "id": "http-2",
+      "name": "Alert Admin Team",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1650, 150]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Event processed\", \"report_id\": $('Save to Database').item.json.id } }}"
+      },
+      "id": "respond-1",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"message\": \"Not an emergency report\" } }}"
+      },
+      "id": "respond-2",
+      "name": "Respond - Not Emergency",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 350]
+    }
+  ],
+  "connections": {
+    "Webhook - Emergency Report": {
+      "main": [
+        [
+          {
+            "node": "IF Message Received",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Message Received": {
+      "main": [
+        [
+          {
+            "node": "Analyze Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Message": {
+      "main": [
+        [
+          {
+            "node": "IF Emergency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Emergency": {
+      "main": [
+        [
+          {
+            "node": "Save to Database",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Not Emergency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Database": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmation": {
+      "main": [
+        [
+          {
+            "node": "IF High Severity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF High Severity": {
+      "main": [
+        [
+          {
+            "node": "Alert Admin Team",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Admin Team": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z",
+      "id": "1",
+      "name": "emergency"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-01T00:00:00.000Z",
+  "versionId": "1"
+}
