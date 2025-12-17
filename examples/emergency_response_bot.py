@@ -378,8 +378,8 @@ Maps: https://maps.google.com/?q={lat},{lon}
         # Create report record
         report_data = {
             'report_id': report_id,
-            'reporter': sender,
-            'reporter_name': event.Info.PushName or 'Unknown',
+            'reporter': str(sender),  # Convert JID to string
+            'reporter_name': getattr(event.Info, 'PushName', 'Unknown'),  # Safe access to PushName
             'timestamp': datetime.now().isoformat(),
             'message': text,
             'category': category,
@@ -388,7 +388,7 @@ Maps: https://maps.google.com/?q={lat},{lon}
             'media': [],
             'status': 'PENDING',
             'is_group': event.Info.MessageSource.IsGroup,
-            'chat': chat
+            'chat': str(chat)  # Convert JID to string
         }
 
         self.reports[report_id] = report_data

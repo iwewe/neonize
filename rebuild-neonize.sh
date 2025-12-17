@@ -203,10 +203,17 @@ echo "   ./diagnose.sh"
 echo ""
 
 echo -e "${CYAN}💡 What changed:${NC}"
-echo "Before: Database created at /app/emergency_bot (not in mounted volume)"
-echo "After:  Database created at /app/sessions/emergency_bot.db (in bind mount)"
+echo "1. Database path: /app/emergency_bot → /app/sessions/emergency_bot.db"
+echo "2. Event handlers: @client.event → @client.event(EventType)"
+echo "3. Message handling: Fixed PushName AttributeError"
+echo "4. JSON serialization: Convert protobuf objects to JSON-safe types"
 echo ""
-echo "This ensures session data persists correctly on the host filesystem!"
+echo "This ensures session persistence and proper event handling!"
+echo ""
+
+echo -e "${YELLOW}⚠ Normal warnings in logs:${NC}"
+echo "  - 'n8n webhook returned 404' - This is normal, n8n workflow not configured yet"
+echo "  - 'Got 515 code, reconnecting' - Normal WhatsApp reconnection"
 echo ""
 
 # Show current container logs (last 20 lines)

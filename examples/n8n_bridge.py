@@ -234,7 +234,7 @@ def setup_neonize_client():
         chat = event.Info.MessageSource.Chat
         message_id = event.Info.ID
         timestamp = event.Info.Timestamp
-        push_name = event.Info.PushName or "Unknown"
+        push_name = getattr(event.Info, 'PushName', 'Unknown')
         is_group = event.Info.MessageSource.IsGroup
 
         msg = event.Message
@@ -243,11 +243,11 @@ def setup_neonize_client():
         message_data = {
             "event_id": f"msg_{message_id}",
             "message_id": message_id,
-            "sender": sender,
+            "sender": str(sender),  # Convert JID to string
             "sender_name": push_name,
-            "chat": chat,
+            "chat": str(chat),  # Convert JID to string
             "is_group": is_group,
-            "timestamp": timestamp,
+            "timestamp": str(timestamp),  # Convert datetime to ISO string
             "text": None,
             "media_type": None,
             "location": None
@@ -291,9 +291,9 @@ def setup_neonize_client():
         """Forward message receipts ke n8n"""
         asyncio.run(forward_to_n8n("receipt", {
             "type": str(event.Type),
-            "message_ids": event.MessageIDs,
+            "message_ids": list(event.MessageIDs),  # Convert RepeatedScalarContainer to list
             "timestamp": datetime.now().isoformat(),
-            "sender": event.MessageSource.Sender if event.MessageSource else None
+            "sender": str(event.MessageSource.Sender) if event.MessageSource else None
         }))
 
     # Connect dalam background thread
