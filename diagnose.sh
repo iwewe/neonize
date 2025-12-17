@@ -261,23 +261,68 @@ else
 fi
 
 # =============================================================================
-# 9. SESSION FILES
+# 9. SESSION FILES & VOLUME CONFIGURATION
 # =============================================================================
-print_section "9. Session Files"
+print_section "9. Session Files & Volume Configuration"
 
+# Check host directory
 if [ -d "$INSTALL_DIR/sessions" ]; then
-    print_result 0 "Sessions directory exists"
+    print_result 0 "Sessions directory exists on host"
 
     session_count=$(find "$INSTALL_DIR/sessions" -type f 2>/dev/null | wc -l)
-    echo "   Files in sessions: $session_count"
+    echo "   Files in host sessions: $session_count"
+    echo "   Directory: $INSTALL_DIR/sessions/"
+    echo "   Permissions: $(stat -c '%a' "$INSTALL_DIR/sessions")"
 
     if [ $session_count -gt 0 ]; then
-        print_result 0 "Session files found (bot was paired before)"
+        print_result 0 "Session files found on host"
+        echo ""
+        echo "   Files:"
+        ls -lh "$INSTALL_DIR/sessions/" | tail -n +2 | awk '{print "     "$9" ("$5")"}'
     else
-        print_result 1 "No session files (bot never paired or cleared)"
+        print_result 1 "No session files on host"
     fi
 else
-    print_result 1 "Sessions directory NOT found"
+    print_result 1 "Sessions directory NOT found on host"
+fi
+
+echo ""
+
+# Check volume mount type
+if docker ps --format '{{.Names}}' | grep -q "^emergency_neonize$"; then
+    echo "Checking volume mount configuration..."
+
+    # Check if it's a bind mount or named volume
+    MOUNT_TYPE=$(docker inspect emergency_neonize | grep -A 10 "Mounts" | grep -o '"Type": "[^"]*"' | head -1 | cut -d'"' -f4)
+    MOUNT_SOURCE=$(docker inspect emergency_neonize | grep -A 10 "Mounts" | grep "sessions" -A 2 | grep "Source" | cut -d'"' -f4)
+
+    echo "   Mount type: $MOUNT_TYPE"
+    echo "   Source: $MOUNT_SOURCE"
+
+    if [ "$MOUNT_TYPE" = "bind" ]; then
+        print_result 0 "Using bind mount (CORRECT - sessions persist to host)"
+    else
+        print_result 1 "Using named volume (WRONG - sessions in Docker volume, not host)"
+        echo ""
+        echo -e "${RED}   ⚠ This is the problem!${NC}"
+        echo "   Sessions are saved in Docker volume, not on host filesystem"
+        echo ""
+        echo -e "${YELLOW}   FIX: Run this command:${NC}"
+        echo -e "   ${CYAN}./fix-sessions.sh${NC}"
+    fi
+
+    # Check inside container
+    echo ""
+    echo "Checking inside container..."
+    CONTAINER_SESSION_COUNT=$(docker exec emergency_neonize sh -c "ls -A /app/sessions 2>/dev/null | wc -l" 2>/dev/null || echo "0")
+    echo "   Files in container /app/sessions: $CONTAINER_SESSION_COUNT"
+
+    if [ "$CONTAINER_SESSION_COUNT" -gt 0 ]; then
+        print_result 0 "Session files exist inside container"
+        docker exec emergency_neonize sh -c "ls -lh /app/sessions 2>/dev/null" | tail -n +2 | awk '{print "     "$9" ("$5")"}'
+    else
+        print_result 1 "No session files inside container"
+    fi
 fi
 
 # =============================================================================
@@ -307,14 +352,36 @@ echo ""
 bot_paired=$(docker logs emergency_neonize 2>&1 | grep -q "Successfully paired" && echo "yes" || echo "no")
 bot_authenticated=$(docker logs emergency_neonize 2>&1 | grep -q "Successfully authenticated" && echo "yes" || echo "no")
 api_connected=$(curl -s http://localhost:8000/health 2>&1 | grep -q '"neonize_connected":true' && echo "yes" || echo "no")
+mount_type=$(docker inspect emergency_neonize 2>/dev/null | grep -A 10 "Mounts" | grep -o '"Type": "[^"]*"' | head -1 | cut -d'"' -f4 || echo "unknown")
+session_files_host=$(find "$INSTALL_DIR/sessions" -type f 2>/dev/null | wc -l)
 
 echo -e "${YELLOW}Status Summary:${NC}"
 echo "  Bot Paired: $bot_paired"
 echo "  Bot Authenticated: $bot_authenticated"
 echo "  API Reports Connected: $api_connected"
+echo "  Volume Mount Type: $mount_type"
+echo "  Session Files on Host: $session_files_host"
 echo ""
 
-if [ "$bot_paired" = "no" ]; then
+# Check for volume mount issue first (most critical)
+if [ "$mount_type" != "bind" ] && [ "$mount_type" != "unknown" ]; then
+    echo -e "${RED}CRITICAL ISSUE: Wrong volume mount configuration${NC}"
+    echo ""
+    echo "Your sessions are being saved to a Docker volume instead of the host filesystem."
+    echo "This causes session persistence problems and requires re-scanning QR code."
+    echo ""
+    echo -e "${YELLOW}FIX:${NC}"
+    echo "1. Run the fix script:"
+    echo -e "   ${CYAN}cd $INSTALL_DIR${NC}"
+    echo -e "   ${CYAN}./fix-sessions.sh${NC}"
+    echo ""
+    echo "This will:"
+    echo "  - Copy any existing sessions from Docker volume to host"
+    echo "  - Update docker-compose to use bind mount"
+    echo "  - Restart services with correct configuration"
+    echo ""
+
+elif [ "$bot_paired" = "no" ]; then
     echo -e "${RED}ISSUE: Bot not paired${NC}"
     echo ""
     echo -e "${YELLOW}FIX:${NC}"

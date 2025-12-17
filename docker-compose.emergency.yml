@@ -116,8 +116,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # Session data (persistent WhatsApp login)
-      - neonize_sessions:/app/sessions
+      # Session data (persistent WhatsApp login) - using bind mount for host access
+      - ./sessions:/app/sessions
 
       # Logs
       - ./logs:/app/logs
@@ -189,8 +189,6 @@ volumes:
   postgres_data:
     driver: local
   n8n_data:
-    driver: local
-  neonize_sessions:
     driver: local
   grafana_data:
     driver: local
