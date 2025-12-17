@@ -199,7 +199,7 @@ def setup_neonize_client():
     neonize_client = NewClient(database_path)
 
     # Setup event handlers
-    @neonize_client.event
+    @neonize_client.event(ConnectedEv)
     def on_connected(client: NewClient, event: ConnectedEv):
         global client_connected
         client_connected = True
@@ -211,7 +211,7 @@ def setup_neonize_client():
             "session": SESSION_NAME
         }))
 
-    @neonize_client.event
+    @neonize_client.event(DisconnectedEv)
     def on_disconnected(client: NewClient, event: DisconnectedEv):
         global client_connected
         client_connected = False
@@ -221,7 +221,7 @@ def setup_neonize_client():
             "timestamp": datetime.now().isoformat()
         }))
 
-    @neonize_client.event
+    @neonize_client.event(MessageEv)
     def on_message(client: NewClient, event: MessageEv):
         """Forward incoming messages ke n8n"""
 
@@ -286,7 +286,7 @@ def setup_neonize_client():
 
         logger.info(f"Message forwarded to n8n: {message_id}")
 
-    @neonize_client.event
+    @neonize_client.event(ReceiptEv)
     def on_receipt(client: NewClient, event: ReceiptEv):
         """Forward message receipts ke n8n"""
         asyncio.run(forward_to_n8n("receipt", {

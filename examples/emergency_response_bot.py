@@ -122,16 +122,16 @@ JANGAN:
     def _setup_handlers(self):
         """Register event handlers"""
 
-        @self.client.event
+        @self.client.event(ConnectedEv)
         def on_connected(client: NewClient, event: ConnectedEv):
             logger.info("✅ Emergency Bot Connected!")
             self._broadcast_to_admins("🟢 Emergency Bot is ONLINE")
 
-        @self.client.event
+        @self.client.event(DisconnectedEv)
         def on_disconnected(client: NewClient, event: DisconnectedEv):
             logger.warning("⚠️ Emergency Bot Disconnected!")
 
-        @self.client.event
+        @self.client.event(MessageEv)
         def on_message(client: NewClient, event: MessageEv):
             self._handle_message(event)
 
