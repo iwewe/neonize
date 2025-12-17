@@ -188,7 +188,15 @@ def setup_neonize_client():
     global neonize_client, client_connected
 
     logger.info("Initializing Neonize client...")
-    neonize_client = NewClient(SESSION_NAME)
+
+    # Create sessions directory if it doesn't exist
+    os.makedirs("sessions", exist_ok=True)
+
+    # Store database in sessions directory for persistence
+    database_path = f"sessions/{SESSION_NAME}.db"
+    logger.info(f"Using database: {database_path}")
+
+    neonize_client = NewClient(database_path)
 
     # Setup event handlers
     @neonize_client.event

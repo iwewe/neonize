@@ -25,6 +25,7 @@ from collections import defaultdict
 import json
 import re
 import logging
+import os
 
 # Setup logging
 logging.basicConfig(
@@ -40,7 +41,14 @@ class EmergencyResponseBot:
     """
 
     def __init__(self, session_name="emergency_bot"):
-        self.client = NewClient(session_name)
+        # Create sessions directory if it doesn't exist
+        os.makedirs("sessions", exist_ok=True)
+
+        # Store database in sessions directory for persistence
+        database_path = f"sessions/{session_name}.db"
+        print(f"Using database: {database_path}")
+
+        self.client = NewClient(database_path)
 
         # In-memory storage (production: gunakan database)
         self.reports = {}  # {report_id: report_data}
