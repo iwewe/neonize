@@ -71,6 +71,7 @@ services:
 
       # Security
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-changeme}
+      - N8N_SECURE_COOKIE=false
 
     ports:
       - "5678:5678"
