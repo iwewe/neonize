@@ -143,6 +143,32 @@ check_internet() {
     print_success "Internet connection OK"
 }
 
+check_docker_access() {
+    # Check if we can access docker without sudo
+    if docker ps &> /dev/null; then
+        return 0  # Docker access OK
+    else
+        return 1  # Docker access denied
+    fi
+}
+
+fix_docker_permission() {
+    print_warning "Docker permission issue detected"
+    print_info "User is in docker group but needs to activate it"
+    echo ""
+    print_info "🔄 Auto-fixing: Activating docker group..."
+    echo ""
+    sleep 2
+
+    # Save current directory and script path
+    local current_dir="$(pwd)"
+    local script_path="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+
+    # Use sg to switch to docker group and re-execute
+    cd "$current_dir"
+    exec sg docker -c "'$script_path'"
+}
+
 ################################################################################
 # Installation Functions
 ################################################################################
@@ -213,7 +239,12 @@ install_docker() {
     sudo systemctl start docker
 
     print_success "Docker installed successfully"
-    print_warning "You may need to log out and back in for docker group to take effect"
+
+    # Check if we can access docker
+    if ! check_docker_access; then
+        print_warning "Docker group not yet active in current session"
+        print_info "Will activate docker group automatically..."
+    fi
 }
 
 install_python() {
@@ -413,6 +444,12 @@ setup_docker_compose() {
 
     cd "$INSTALL_DIR"
 
+    # Check docker access before running docker commands
+    if ! check_docker_access; then
+        fix_docker_permission "$@"
+        return 1
+    fi
+
     print_info "Pulling Docker images..."
     docker compose -f docker-compose.emergency.yml pull
 
@@ -423,6 +460,12 @@ start_services() {
     print_header "Starting Services"
 
     cd "$INSTALL_DIR"
+
+    # Check docker access before running docker commands
+    if ! check_docker_access; then
+        fix_docker_permission "$@"
+        return 1
+    fi
 
     print_info "Starting Docker containers..."
     docker compose -f docker-compose.emergency.yml up -d
