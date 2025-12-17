@@ -6,16 +6,21 @@
 ################################################################################
 #
 # Usage:
-#   curl -sSL https://raw.githubusercontent.com/iwewe/neonize/claude/neonize-emergency-analysis-K1wGV/install.sh | bash
-#
-# Or download and run:
-#   wget https://raw.githubusercontent.com/iwewe/neonize/claude/neonize-emergency-analysis-K1wGV/install.sh
+#   # Interactive mode (recommended):
+#   curl -sSL https://raw.githubusercontent.com/iwewe/neonize/claude/neonize-emergency-analysis-K1wGV/install.sh -o install.sh
 #   chmod +x install.sh
 #   ./install.sh
+#
+#   # Auto-yes mode (skip all prompts):
+#   export AUTO_YES=1
+#   curl -sSL https://raw.githubusercontent.com/iwewe/neonize/claude/neonize-emergency-analysis-K1wGV/install.sh | bash
 #
 ################################################################################
 
 set -e  # Exit on error
+
+# Auto-yes mode (set AUTO_YES=1 to skip all prompts)
+AUTO_YES=${AUTO_YES:-0}
 
 # Colors for output
 RED='\033[0;31m'
@@ -55,6 +60,47 @@ print_info() {
     echo -e "${BLUE}ℹ $1${NC}"
 }
 
+ask_yes_no() {
+    local prompt="$1"
+    local default="${2:-N}"
+
+    # Auto-yes mode
+    if [[ $AUTO_YES -eq 1 ]]; then
+        echo -e "${YELLOW}$prompt (y/N) [AUTO-YES]${NC}"
+        return 0  # Return yes
+    fi
+
+    # Interactive mode
+    read -p "$prompt (y/N) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        return 0  # Yes
+    else
+        return 1  # No
+    fi
+}
+
+ask_input() {
+    local prompt="$1"
+    local default="$2"
+    local var_name="$3"
+
+    # Auto-yes mode with default
+    if [[ $AUTO_YES -eq 1 ]] && [[ -n "$default" ]]; then
+        echo -e "${YELLOW}$prompt [AUTO: $default]${NC}"
+        eval "$var_name='$default'"
+        return 0
+    fi
+
+    # Interactive mode
+    read -p "$prompt" input
+    if [[ -z "$input" ]] && [[ -n "$default" ]]; then
+        eval "$var_name='$default'"
+    else
+        eval "$var_name='$input'"
+    fi
+}
+
 check_root() {
     if [[ $EUID -eq 0 ]]; then
         print_error "This script should NOT be run as root"
@@ -80,9 +126,7 @@ check_ubuntu() {
     if [[ "$VERSION_ID" != "24.04" ]] && [[ "$VERSION_ID" != "22.04" ]]; then
         print_warning "This script is tested on Ubuntu 24.04 and 22.04"
         print_info "Detected: Ubuntu $VERSION_ID"
-        read -p "Continue anyway? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        if ! ask_yes_no "Continue anyway?"; then
             exit 1
         fi
     fi
@@ -175,19 +219,24 @@ install_docker() {
 install_python() {
     print_header "Installing Python & Dependencies"
 
-    # Check if Python 3.11+ is installed
-    if command -v python3.11 &> /dev/null; then
-        print_success "Python 3.11 already installed"
-        return 0
-    elif command -v python3.12 &> /dev/null; then
-        print_success "Python 3.12 already installed"
-        return 0
+    print_info "Installing Python packages..."
+
+    # Install Python 3.12 (default on Ubuntu 24.04) or 3.11
+    if command -v python3.12 &> /dev/null; then
+        print_success "Python 3.12 detected"
+        sudo apt-get install -y -qq python3.12-venv python3-pip 2>/dev/null || true
+    elif command -v python3.11 &> /dev/null; then
+        print_success "Python 3.11 detected"
+        sudo apt-get install -y -qq python3.11-venv python3-pip 2>/dev/null || true
+    else
+        print_info "Installing Python 3.11..."
+        sudo apt-get install -y -qq python3.11 python3.11-venv python3-pip
     fi
 
-    print_info "Installing Python 3.11..."
-    sudo apt-get install -y -qq python3.11 python3.11-venv python3-pip
+    # Also install python3-venv as fallback
+    sudo apt-get install -y -qq python3-venv python3-pip 2>/dev/null || true
 
-    print_success "Python installed"
+    print_success "Python and venv installed"
 }
 
 clone_repository() {
@@ -196,14 +245,12 @@ clone_repository() {
     # Remove existing directory if it exists
     if [[ -d "$INSTALL_DIR" ]]; then
         print_warning "Directory $INSTALL_DIR already exists"
-        read -p "Remove and re-clone? (y/N) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
+        if ask_yes_no "Remove and re-clone?"; then
             rm -rf "$INSTALL_DIR"
         else
             print_info "Using existing directory"
             cd "$INSTALL_DIR"
-            git pull origin "$REPO_BRANCH"
+            git pull origin "$REPO_BRANCH" 2>/dev/null || true
             return 0
         fi
     fi
@@ -224,9 +271,7 @@ setup_environment() {
     # Check if .env exists
     if [[ -f .env ]]; then
         print_warning ".env file already exists"
-        read -p "Overwrite with new configuration? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        if ! ask_yes_no "Overwrite with new configuration?"; then
             print_info "Keeping existing .env file"
             return 0
         fi
@@ -242,9 +287,18 @@ setup_environment() {
 
     # Get user input
     echo ""
-    read -p "Enter your admin WhatsApp number (e.g., 628123456789): " ADMIN_NUMBER
-    read -p "Enter your server hostname/IP (default: localhost): " SERVER_HOST
-    SERVER_HOST=${SERVER_HOST:-localhost}
+
+    # Auto-yes mode uses defaults
+    if [[ $AUTO_YES -eq 1 ]]; then
+        ADMIN_NUMBER="628123456789"
+        SERVER_HOST="localhost"
+        print_warning "Using default admin number: $ADMIN_NUMBER"
+        print_warning "Using default hostname: $SERVER_HOST"
+        print_info "You can change these later in .env file"
+    else
+        ask_input "Enter your admin WhatsApp number (e.g., 628123456789): " "" "ADMIN_NUMBER"
+        ask_input "Enter your server hostname/IP (default: localhost): " "localhost" "SERVER_HOST"
+    fi
 
     # Create .env file
     cat > .env <<EOF
@@ -426,6 +480,13 @@ display_qr_instructions() {
     echo "4. Press Ctrl+C to exit log view after scanning"
     echo -e "${NC}"
 
+    # Skip interactive prompt in auto-yes mode
+    if [[ $AUTO_YES -eq 1 ]]; then
+        print_info "Auto-yes mode: Skipping QR code display"
+        print_info "Run this command to see QR code: docker logs emergency_neonize -f"
+        return 0
+    fi
+
     read -p "Press Enter to view QR code logs..." -r
     echo ""
 
@@ -483,9 +544,7 @@ display_final_info() {
 create_systemd_service() {
     print_header "Creating Systemd Service (Optional)"
 
-    read -p "Do you want to auto-start services on boot? (y/N) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    if ! ask_yes_no "Do you want to auto-start services on boot?"; then
         print_info "Skipping systemd service creation"
         return 0
     fi
@@ -525,9 +584,7 @@ setup_firewall() {
         return 0
     fi
 
-    read -p "Do you want to configure UFW firewall? (y/N) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    if ! ask_yes_no "Do you want to configure UFW firewall?"; then
         print_info "Skipping firewall configuration"
         return 0
     fi
@@ -575,9 +632,8 @@ EOF
     print_warning "This script will install system packages and Docker."
     print_info "Installation directory: $INSTALL_DIR"
     echo ""
-    read -p "Continue with installation? (y/N) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+
+    if ! ask_yes_no "Continue with installation?"; then
         print_info "Installation cancelled"
         exit 0
     fi

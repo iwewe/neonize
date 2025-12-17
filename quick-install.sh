@@ -22,6 +22,9 @@ cat << "EOF"
 EOF
 echo -e "${NC}"
 
+echo -e "${YELLOW}Mode: Auto-Yes (all prompts will use defaults)${NC}"
+echo ""
+
 # Download full installer
 echo -e "${YELLOW}Downloading full installer...${NC}"
 curl -sSL https://raw.githubusercontent.com/iwewe/neonize/claude/neonize-emergency-analysis-K1wGV/install.sh -o /tmp/neonize-install.sh
@@ -29,6 +32,7 @@ curl -sSL https://raw.githubusercontent.com/iwewe/neonize/claude/neonize-emergen
 # Make executable
 chmod +x /tmp/neonize-install.sh
 
-# Run installer
+# Run installer with AUTO_YES mode
 echo -e "${GREEN}Starting installation...${NC}"
+export AUTO_YES=1
 exec /tmp/neonize-install.sh
