@@ -1,0 +1,321 @@
+{
+  "name": "Emergency Response Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "emergency",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-emergency",
+      "name": "Webhook Emergency",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "emergency-webhook"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": ""
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event_type }}",
+                    "rightValue": "message_received",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "message"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": ""
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.event_type }}",
+                    "rightValue": "bot_connected",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "bot_status"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "switch-event-type",
+      "name": "Switch Event Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract message data\nconst item = $input.all()[0].json.body || $input.all()[0].json;\nconst data = item.data || {};\n\n// Extract text and metadata\nconst text = data.text || '';\nconst sender = data.sender_name || 'Unknown';\nconst chat = data.chat || '';\nconst isGroup = data.is_group || false;\nconst timestamp = item.timestamp || new Date().toISOString();\n\n// Check for emergency keywords\nconst emergencyKeywords = [\n  'banjir', 'gempa', 'kebakaran', 'longsor', 'tsunami',\n  'darurat', 'emergency', 'tolong', 'bahaya'\n];\n\nconst textLower = text.toLowerCase();\nconst isEmergency = emergencyKeywords.some(keyword => textLower.includes(keyword));\n\n// Estimate severity based on keywords\nlet severity = 1;\nif (textLower.includes('parah') || textLower.includes('besar')) severity = 5;\nelse if (textLower.includes('sangat') || textLower.includes('banyak')) severity = 4;\nelse if (textLower.includes('lumayan') || textLower.includes('sedang')) severity = 3;\nelse if (textLower.includes('kecil') || textLower.includes('ringan')) severity = 2;\n\n// Detect disaster type\nlet disasterType = 'other';\nif (textLower.includes('banjir')) disasterType = 'flood';\nelse if (textLower.includes('gempa')) disasterType = 'earthquake';\nelse if (textLower.includes('kebakaran')) disasterType = 'fire';\nelse if (textLower.includes('longsor')) disasterType = 'landslide';\nelse if (textLower.includes('tsunami')) disasterType = 'tsunami';\n\nreturn {\n  json: {\n    message_id: data.message_id,\n    sender: data.sender,\n    sender_name: sender,\n    chat: chat,\n    is_group: isGroup,\n    text: text,\n    is_emergency: isEmergency,\n    disaster_type: disasterType,\n    severity: severity,\n    timestamp: timestamp,\n    processed_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "process-message",
+      "name": "Process Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.is_emergency }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-emergency",
+      "name": "Filter Emergency Only",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": {
+          "__rl": true,
+          "value": "public",
+          "mode": "list",
+          "cachedResultName": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "emergency_reports",
+          "mode": "list",
+          "cachedResultName": "emergency_reports"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "sender": "={{ $json.sender }}",
+            "sender_name": "={{ $json.sender_name }}",
+            "chat_id": "={{ $json.chat }}",
+            "is_group": "={{ $json.is_group }}",
+            "message_text": "={{ $json.text }}",
+            "disaster_type": "={{ $json.disaster_type }}",
+            "severity": "={{ $json.severity }}",
+            "status": "pending",
+            "created_at": "={{ $json.timestamp }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "save-to-db",
+      "name": "Save Emergency Report",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1120,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-emergency",
+          "name": "Emergency DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log bot status change\nconst item = $input.all()[0].json;\nconst data = item.data || {};\nconst timestamp = item.timestamp || new Date().toISOString();\n\nconsole.log('Bot Status Changed:', {\n  event: item.event_type,\n  session: data.session,\n  timestamp: timestamp\n});\n\nreturn {\n  json: {\n    status: 'logged',\n    event_type: item.event_type,\n    timestamp: timestamp\n  }\n};"
+      },
+      "id": "log-bot-status",
+      "name": "Log Bot Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate auto-reply for emergency report\nconst item = $input.all()[0].json;\n\nconst reportId = `RPT-${Date.now()}`;\nconst disasterEmoji = {\n  'flood': '\ud83c\udf0a',\n  'earthquake': '\ud83c\udfda\ufe0f',\n  'fire': '\ud83d\udd25',\n  'landslide': '\u26f0\ufe0f',\n  'tsunami': '\ud83c\udf0a',\n  'other': '\u26a0\ufe0f'\n};\n\nconst emoji = disasterEmoji[item.disaster_type] || '\u26a0\ufe0f';\nconst severityStars = '\u2b50'.repeat(item.severity);\n\nconst reply = `${emoji} *LAPORAN DITERIMA*\\n\\n` +\n  `ID Laporan: ${reportId}\\n` +\n  `Jenis: ${item.disaster_type.toUpperCase()}\\n` +\n  `Tingkat: ${severityStars} (${item.severity}/5)\\n` +\n  `Waktu: ${new Date(item.timestamp).toLocaleString('id-ID')}\\n\\n` +\n  `\u2705 Tim emergency response telah menerima laporan Anda.\\n` +\n  `\ud83d\udcde Kami akan segera menghubungi untuk verifikasi.\\n\\n` +\n  `Tetap tenang dan ikuti instruksi petugas!`;\n\nreturn {\n  json: {\n    report_id: reportId,\n    sender: item.sender,\n    sender_name: item.sender_name,\n    chat: item.chat,\n    reply_message: reply,\n    disaster_type: item.disaster_type,\n    severity: item.severity\n  }\n};"
+      },
+      "id": "generate-reply",
+      "name": "Generate Auto Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://emergency_neonize:8000/send-message",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $env.API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ $json.sender.split('@')[0] }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.reply_message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-reply",
+      "name": "Send Auto Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1560,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Emergency": {
+      "main": [
+        [
+          {
+            "node": "Switch Event Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch Event Type": {
+      "main": [
+        [
+          {
+            "node": "Process Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Bot Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Message": {
+      "main": [
+        [
+          {
+            "node": "Filter Emergency Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Emergency Only": {
+      "main": [
+        [
+          {
+            "node": "Save Emergency Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Emergency Report": {
+      "main": [
+        [
+          {
+            "node": "Generate Auto Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Auto Reply": {
+      "main": [
+        [
+          {
+            "node": "Send Auto Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-12-17T00:00:00.000Z",
+  "versionId": "1"
+}
