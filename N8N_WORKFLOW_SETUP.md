@@ -92,6 +92,44 @@ Kembali ke workflow "Emergency Response Bot":
 
 3. **Save** workflow
 
+### Langkah 4a: Setup Header Auth Credential (API Authentication)
+
+**PENTING:** Workflow membutuhkan credential untuk autentikasi API neonize.
+
+1. **Cari API Key di server:**
+
+```bash
+cd ~/neonize-emergency
+cat .env | grep API_KEY
+```
+
+Contoh output: `API_KEY=emergency_api_key_12345` - **catat value-nya**
+
+2. **Buat Header Auth Credential:**
+
+   - Di n8n, klik **"Credentials"** di sidebar
+   - Klik **"+ Add Credential"**
+   - Cari dan pilih **"Header Auth"**
+
+3. **Fill Credentials:**
+   - **Credential Name**: `Neonize API Key`
+   - **Name**: `X-Api-Key` (harus persis ini, case-sensitive!)
+   - **Value**: Paste API key dari step 1
+
+4. **Save** credential
+
+5. **Assign ke Node "Send Auto Reply":**
+
+   - Kembali ke workflow "Emergency Response Bot"
+   - Klik node **"Send Auto Reply"** (node HTTP Request terakhir)
+   - Di panel kanan, section **Credentials**:
+     - Pilih credential: **"Neonize API Key"**
+   - **Save** workflow
+
+6. **Verify:** Warning "Credentials for 'Header Auth' are not set" harus hilang
+
+📖 **Panduan lengkap**: Lihat file `N8N_HEADER_AUTH_SETUP.md` untuk detail troubleshooting.
+
 ### Langkah 5: Activate Workflow
 
 1. **Di kanan atas workflow**, ada toggle **"Inactive"**
