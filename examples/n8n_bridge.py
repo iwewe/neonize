@@ -648,6 +648,106 @@ async def get_status(api_key: str = Depends(verify_api_key)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==================== EMERGENCY RESPONSE ENDPOINTS ====================
+
+@app.post("/save-emergency-report", response_model=ApiResponse)
+async def save_emergency_report(
+    data: dict,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Save emergency report to database
+
+    This endpoint bypasses n8n Postgres node to avoid id=0 bug.
+    Uses direct psycopg2 connection for reliable auto-increment.
+
+    Example:
+    POST /save-emergency-report
+    Headers: {"X-Api-Key": "your-api-key"}
+    Body: {
+        "sender": "628xxx@s.whatsapp.net",
+        "sender_name": "John Doe",
+        "chat_id": "628xxx@s.whatsapp.net",
+        "is_group": false,
+        "message_text": "Ada banjir besar...",
+        "disaster_type": "flood",
+        "severity": 5
+    }
+    """
+    import psycopg2
+    from datetime import datetime
+
+    try:
+        # Database connection from environment
+        conn = psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "postgres"),
+            port=int(os.getenv("POSTGRES_PORT", "5432")),
+            database=os.getenv("POSTGRES_DB", "emergency_db"),
+            user=os.getenv("POSTGRES_USER", "emergency"),
+            password=os.getenv("POSTGRES_PASSWORD", "emergency123")
+        )
+
+        cursor = conn.cursor()
+
+        # INSERT query - id and created_at will auto-generate
+        sql = """
+        INSERT INTO emergency_reports
+          (sender, sender_name, chat_id, is_group, message_text, disaster_type, severity, status)
+        VALUES
+          (%s, %s, %s, %s, %s, %s, %s, 'pending')
+        RETURNING id, sender, sender_name, disaster_type, severity, created_at
+        """
+
+        values = (
+            data.get('sender', ''),
+            data.get('sender_name', 'Unknown'),
+            data.get('chat_id', ''),
+            data.get('is_group', False),
+            data.get('message_text', ''),
+            data.get('disaster_type', 'other'),
+            data.get('severity', 1)
+        )
+
+        cursor.execute(sql, values)
+        result = cursor.fetchone()
+        conn.commit()
+
+        # Close connection
+        cursor.close()
+        conn.close()
+
+        if result:
+            report_id, sender, sender_name, disaster_type, severity, created_at = result
+
+            # Generate report ID for user display
+            report_display_id = f"RPT-{int(datetime.now().timestamp() * 1000)}"
+
+            logger.info(f"✅ Emergency report saved: ID={report_id}, Type={disaster_type}, Display={report_display_id}")
+
+            return ApiResponse(
+                success=True,
+                message="Emergency report saved successfully",
+                data={
+                    "id": report_id,
+                    "report_id": report_display_id,
+                    "sender": sender,
+                    "sender_name": sender_name,
+                    "disaster_type": disaster_type,
+                    "severity": severity,
+                    "created_at": created_at.isoformat() if created_at else None
+                }
+            )
+        else:
+            raise Exception("Insert failed - no result returned")
+
+    except psycopg2.Error as e:
+        logger.error(f"Database error saving emergency report: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to save emergency report: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==================== ERROR HANDLERS ====================
 
 @app.exception_handler(HTTPException)
