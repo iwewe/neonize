@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neonize - Sistem WhatsApp untuk Kebencanaan</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .slide {
+            display: none;
+            min-height: 100vh;
+            padding: 40px 20px;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .slide.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .navigation {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 30px;
+            border-radius: 50px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            display: flex;
+            gap: 15px;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .nav-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .slide-counter {
+            color: #667eea;
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin: 20px 0;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            font-size: 3.5em;
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        h2 {
+            font-size: 2.5em;
+            color: #667eea;
+            margin-bottom: 25px;
+            border-bottom: 4px solid #667eea;
+            padding-bottom: 15px;
+        }
+
+        h3 {
+            font-size: 1.8em;
+            color: #764ba2;
+            margin: 25px 0 15px 0;
+        }
+
+        .workflow-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .workflow-step {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 25px;
+            border-radius: 15px;
+            border-left: 6px solid #667eea;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .workflow-step:hover {
+            transform: translateX(10px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .workflow-step::before {
+            content: attr(data-step);
+            position: absolute;
+            left: -40px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.5em;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .workflow-steps-container {
+            margin-left: 60px;
+        }
+
+        .step-title {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .step-description {
+            color: #555;
+            line-height: 1.6;
+            font-size: 1.1em;
+        }
+
+        .architecture-diagram {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .arch-component {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .arch-component:hover {
+            transform: translateY(-10px) scale(1.05);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+        }
+
+        .arch-component h4 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+
+        .arch-component p {
+            font-size: 1em;
+            line-height: 1.5;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        .feature-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 25px;
+            border-radius: 10px;
+            overflow-x: auto;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+        }
+
+        .highlight {
+            background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 25px 0;
+            font-size: 1.2em;
+            line-height: 1.8;
+        }
+
+        .use-case-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+
+        .use-case {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .use-case h4 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            border-bottom: 2px solid white;
+            padding-bottom: 10px;
+        }
+
+        .use-case ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .use-case li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .use-case li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .timeline {
+            position: relative;
+            padding: 30px 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .timeline-item {
+            margin: 30px 0;
+            position: relative;
+        }
+
+        .timeline-content {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            width: 45%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .timeline-item:nth-child(odd) .timeline-content {
+            margin-left: 55%;
+        }
+
+        .timeline-item:nth-child(even) .timeline-content {
+            margin-right: 55%;
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            border: 5px solid white;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .stat-number {
+            font-size: 3em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 1.1em;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5em;
+            }
+
+            h2 {
+                font-size: 2em;
+            }
+
+            .workflow-step::before {
+                left: -30px;
+                width: 50px;
+                height: 50px;
+                font-size: 1.2em;
+            }
+
+            .workflow-steps-container {
+                margin-left: 40px;
+            }
+
+            .timeline::before {
+                left: 20px;
+            }
+
+            .timeline-content {
+                width: calc(100% - 60px) !important;
+                margin-left: 60px !important;
+                margin-right: 0 !important;
+            }
+
+            .timeline-dot {
+                left: 20px;
+            }
+        }
+
+        .logo {
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .logo-text {
+            font-size: 5em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .subtitle {
+            font-size: 1.5em;
+            color: white;
+            text-align: center;
+            margin-top: 10px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Slide 1: Cover -->
+        <div class="slide active" id="slide1">
+            <div class="logo">
+                <div class="logo-text">🚀 NEONIZE</div>
+            </div>
+            <h1>Sistem Automasi WhatsApp untuk Manajemen Kebencanaan</h1>
+            <p class="subtitle">Komunikasi Cepat, Koordinasi Efektif, Penyelamatan Maksimal</p>
+
+            <div class="card">
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-number">⚡</div>
+                        <div class="stat-label">Real-time</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">🔒</div>
+                        <div class="stat-label">End-to-End Encryption</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">🌐</div>
+                        <div class="stat-label">Multi-Platform</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">📱</div>
+                        <div class="stat-label">WhatsApp Based</div>
+                    </div>
+                </div>
+
+                <div class="highlight">
+                    <strong>Neonize</strong> adalah library Python yang memungkinkan automasi WhatsApp untuk komunikasi
+                    darurat dan koordinasi tim dalam situasi kebencanaan. Dibangun di atas <strong>Whatsmeow</strong> (Go library),
+                    menghadirkan performa tingkat enterprise dengan kemudahan Python.
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Arsitektur Sistem -->
+        <div class="slide" id="slide2">
+            <div class="card">
+                <h2>🏗️ Arsitektur Sistem Neonize</h2>
+
+                <div class="architecture-diagram">
+                    <div class="arch-component">
+                        <h4>📱 WhatsApp Web API</h4>
+                        <p>Interface komunikasi dengan WhatsApp menggunakan protokol Web API resmi</p>
+                    </div>
+
+                    <div class="arch-component">
+                        <h4>🔧 Whatsmeow (Go)</h4>
+                        <p>Core engine berbasis Go untuk performa tinggi dan efisiensi</p>
+                    </div>
+
+                    <div class="arch-component">
+                        <h4>🐍 Neonize Python Wrapper</h4>
+                        <p>Layer Python yang user-friendly untuk integrasi mudah</p>
+                    </div>
+
+                    <div class="arch-component">
+                        <h4>🗄️ Database Layer</h4>
+                        <p>SQLite/PostgreSQL untuk menyimpan sesi dan data pesan</p>
+                    </div>
+
+                    <div class="arch-component">
+                        <h4>🎯 Event System</h4>
+                        <p>Event-driven architecture untuk handling real-time messages</p>
+                    </div>
+
+                    <div class="arch-component">
+                        <h4>🚨 Aplikasi Kebencanaan</h4>
+                        <p>Sistem manajemen bencana yang terintegrasi</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Workflow Koneksi -->
+        <div class="slide" id="slide3">
+            <div class="card">
+                <h2>🔌 Workflow Koneksi & Autentikasi</h2>
+
+                <div class="workflow-steps-container">
+                    <div class="workflow-diagram">
+                        <div class="workflow-step" data-step="1">
+                            <div class="step-title">Inisialisasi Client</div>
+                            <div class="step-description">
+                                Aplikasi membuat instance NewClient dengan nama sesi unik dan konfigurasi database
+                            </div>
+                            <div class="code-block">client = NewClient("disaster_response_bot", database="./disaster.db")</div>
+                        </div>
+
+                        <div class="workflow-step" data-step="2">
+                            <div class="step-title">Koneksi ke WhatsApp Server</div>
+                            <div class="step-description">
+                                Client menghubungi WhatsApp Web server dan memeriksa keberadaan sesi tersimpan
+                            </div>
+                        </div>
+
+                        <div class="workflow-step" data-step="3">
+                            <div class="step-title">Autentikasi</div>
+                            <div class="step-description">
+                                <strong>Pertama kali:</strong> Menampilkan QR Code atau Pairing Code untuk di-scan/input dari WhatsApp mobile<br>
+                                <strong>Sesi aktif:</strong> Menggunakan kredensial tersimpan dari database
+                            </div>
+                        </div>
+
+                        <div class="workflow-step" data-step="4">
+                            <div class="step-title">Event Registration</div>
+                            <div class="step-description">
+                                Mendaftarkan event handlers untuk berbagai jenis event (pesan masuk, koneksi, status, dll)
+                            </div>
+                            <div class="code-block">@client.event
+def on_connected(client, event):
+    print("✅ Bot terhubung dan siap!")</div>
+                        </div>
+
+                        <div class="workflow-step" data-step="5">
+                            <div class="step-title">Siap Beroperasi</div>
+                            <div class="step-description">
+                                Bot siap menerima dan mengirim pesan secara real-time
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Workflow Pesan -->
+        <div class="slide" id="slide4">
+            <div class="card">
+                <h2>💬 Workflow Penanganan Pesan</h2>
+
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h3>1. Pesan Masuk dari WhatsApp</h3>
+                            <p>Server WhatsApp mengirim pesan ke client melalui WebSocket connection yang sudah terenkripsi end-to-end</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h3>2. Whatsmeow Processing</h3>
+                            <p>Go engine memproses raw message, melakukan dekripsi, dan parsing protobuf message</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h3>3. Event Dispatch</h3>
+                            <p>Neonize mendeteksi tipe event (MessageEv, ReceiptEv, dll) dan memanggil handler yang sesuai</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h3>4. Application Logic</h3>
+                            <p>Handler aplikasi memproses pesan sesuai logika bisnis (parsing command, validasi, dll)</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h3>5. Response Generation</h3>
+                            <p>Aplikasi membuat response message (text, media, lokasi, dll) menggunakan builder functions</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h3>6. Send Message</h3>
+                            <p>Neonize mengirim pesan melalui Whatsmeow ke WhatsApp server dengan enkripsi E2E</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h3>7. Delivery Confirmation</h3>
+                            <p>Menerima receipt event untuk konfirmasi pesan terkirim/terbaca</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Event System -->
+        <div class="slide" id="slide5">
+            <div class="card">
+                <h2>🎯 Event-Driven Architecture</h2>
+
+                <h3>Event Types yang Tersedia:</h3>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">📨</div>
+                        <div class="feature-title">MessageEv</div>
+                        <p>Event saat pesan baru diterima (teks, media, dokumen)</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">✅</div>
+                        <div class="feature-title">ConnectedEv</div>
+                        <p>Event saat bot berhasil terhubung ke WhatsApp</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">📧</div>
+                        <div class="feature-title">ReceiptEv</div>
+                        <p>Event untuk status pesan (terkirim, tersampaikan, dibaca)</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">📞</div>
+                        <div class="feature-title">CallOfferEv</div>
+                        <p>Event saat ada panggilan masuk</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">💬</div>
+                        <div class="feature-title">PresenceEv</div>
+                        <p>Event untuk status online/typing pengguna</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">👥</div>
+                        <div class="feature-title">GroupEv</div>
+                        <p>Event untuk perubahan grup (member join/leave, dll)</p>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 40px;">Contoh Implementation:</h3>
+                <div class="code-block">@client.event
+def on_message(client: NewClient, event: MessageEv):
+    # Parsing pesan
+    text = event.Message.conversation
+    sender = event.Info.MessageSource.Sender
+    chat = event.Info.MessageSource.Chat
+
+    # Logika penanganan bencana
+    if text.startswith("/lapor"):
+        # Proses laporan bencana
+        handle_disaster_report(client, chat, sender, text)
+    elif text == "/status":
+        # Kirim status terkini
+        send_disaster_status(client, chat)</div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Use Cases Kebencanaan -->
+        <div class="slide" id="slide6">
+            <div class="card">
+                <h2>🚨 Use Cases untuk Manajemen Kebencanaan</h2>
+
+                <div class="use-case-grid">
+                    <div class="use-case">
+                        <h4>🔔 Sistem Peringatan Dini</h4>
+                        <ul>
+                            <li>Broadcast peringatan bencana ke ribuan kontak</li>
+                            <li>Pengiriman pesan berdasarkan lokasi geografis</li>
+                            <li>Alert untuk gempa, tsunami, banjir, kebakaran</li>
+                            <li>Notifikasi multi-level (warning, alert, emergency)</li>
+                        </ul>
+                    </div>
+
+                    <div class="use-case">
+                        <h4>📍 Pelaporan Bencana Real-time</h4>
+                        <ul>
+                            <li>Terima laporan dari warga via WhatsApp</li>
+                            <li>Parsing lokasi dari pesan atau GPS</li>
+                            <li>Terima foto/video kondisi lapangan</li>
+                            <li>Validasi dan klasifikasi laporan otomatis</li>
+                        </ul>
+                    </div>
+
+                    <div class="use-case">
+                        <h4>👥 Koordinasi Tim Respons</h4>
+                        <ul>
+                            <li>Manajemen grup WhatsApp otomatis per zona</li>
+                            <li>Assignment task ke tim SAR</li>
+                            <li>Tracking status evakuasi real-time</li>
+                            <li>Komunikasi antar posko</li>
+                        </ul>
+                    </div>
+
+                    <div class="use-case">
+                        <h4>📊 Data Collection & Monitoring</h4>
+                        <ul>
+                            <li>Survei cepat kondisi warga</li>
+                            <li>Polling kebutuhan logistik</li>
+                            <li>Database korban dan pengungsi</li>
+                            <li>Status shelter dan ketersediaan</li>
+                        </ul>
+                    </div>
+
+                    <div class="use-case">
+                        <h4>🏥 Bantuan dan Logistik</h4>
+                        <ul>
+                            <li>Request bantuan medis darurat</li>
+                            <li>Tracking distribusi bantuan</li>
+                            <li>Koordinasi relawan</li>
+                            <li>Manajemen donasi</li>
+                        </ul>
+                    </div>
+
+                    <div class="use-case">
+                        <h4>ℹ️ Informasi Publik</h4>
+                        <ul>
+                            <li>Update situasi terkini otomatis</li>
+                            <li>Panduan evakuasi dan safety tips</li>
+                            <li>Lokasi shelter terdekat</li>
+                            <li>FAQ dan helpdesk 24/7</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Contoh Implementasi -->
+        <div class="slide" id="slide7">
+            <div class="card">
+                <h2>💻 Contoh Implementasi Sistem Kebencanaan</h2>
+
+                <h3>Bot Pelaporan Bencana:</h3>
+                <div class="code-block">from neonize.client import NewClient
+from neonize.events import MessageEv, ConnectedEv, event
+from datetime import datetime
+import json
+
+# Inisialisasi client untuk sistem kebencanaan
+client = NewClient("disaster_management_bot", database="disaster.db")
+
+# Database sederhana untuk menyimpan laporan
+disaster_reports = []
+
+@client.event
+def on_connected(client: NewClient, event: ConnectedEv):
+    print("🚨 Sistem Manajemen Bencana AKTIF")
+    print(f"📱 Device: {event.device.User}")
+
+    # Kirim notifikasi ke admin
+    admin_jid = build_jid("628123456789")  # Nomor admin
+    client.send_message(admin_jid, "✅ Sistem online dan siap menerima laporan")
+
+@client.event
+def on_message(client: NewClient, event: MessageEv):
+    text = event.Message.conversation or event.Message.extendedTextMessage.text
+    sender = event.Info.MessageSource.Sender
+    chat = event.Info.MessageSource.Chat
+
+    # Command: Lapor Bencana
+    if text and text.startswith("/lapor"):
+        handle_disaster_report(client, chat, sender, text, event)
+
+    # Command: Status Bencana
+    elif text == "/status":
+        send_disaster_status(client, chat)
+
+    # Command: Bantuan Darurat
+    elif text == "/darurat":
+        handle_emergency(client, chat, sender)
+
+    # Command: Lokasi Shelter
+    elif text == "/shelter":
+        send_shelter_info(client, chat)
+
+    # Handle foto/video laporan
+    elif event.Message.imageMessage or event.Message.videoMessage:
+        save_media_report(client, event)
+
+def handle_disaster_report(client, chat, sender, text, event):
+    """Menangani laporan bencana dari masyarakat"""
+
+    # Parse laporan: /lapor [jenis] [lokasi] [keterangan]
+    parts = text.split(" ", 3)
+
+    if len(parts) < 3:
+        client.send_message(chat,
+            "❌ Format salah!\n\n"
+            "Format: /lapor [jenis] [lokasi] [keterangan]\n"
+            "Contoh: /lapor banjir Jl.Sudirman Ketinggian 50cm")
+        return
+
+    report = {
+        "id": len(disaster_reports) + 1,
+        "timestamp": datetime.now().isoformat(),
+        "reporter": sender,
+        "type": parts[1],
+        "location": parts[2],
+        "description": parts[3] if len(parts) > 3 else "",
+        "status": "pending"
+    }
+
+    disaster_reports.append(report)
+
+    # Konfirmasi ke pelapor
+    client.send_message(chat,
+        f"✅ LAPORAN DITERIMA\n\n"
+        f"ID: #{report['id']}\n"
+        f"Jenis: {report['type'].upper()}\n"
+        f"Lokasi: {report['location']}\n"
+        f"Waktu: {datetime.now().strftime('%H:%M:%S')}\n\n"
+        f"Tim akan segera menindaklanjuti. Terima kasih!")
+
+    # Forward ke group koordinator
+    coordinator_group = build_jid("120363xxxxx@g.us")
+    client.send_message(coordinator_group,
+        f"🚨 LAPORAN BENCANA BARU\n\n"
+        f"ID: #{report['id']}\n"
+        f"Dari: {sender}\n"
+        f"Jenis: {report['type'].upper()}\n"
+        f"Lokasi: {report['location']}\n"
+        f"Detail: {report['description']}\n"
+        f"Waktu: {report['timestamp']}")
+
+def send_disaster_status(client, chat):
+    """Mengirim status terkini bencana"""
+
+    if not disaster_reports:
+        client.send_message(chat, "✅ Tidak ada laporan bencana aktif")
+        return
+
+    # Hitung statistik
+    pending = sum(1 for r in disaster_reports if r['status'] == 'pending')
+    handled = sum(1 for r in disaster_reports if r['status'] == 'handled')
+
+    status_msg = (
+        f"📊 STATUS BENCANA TERKINI\n\n"
+        f"Total Laporan: {len(disaster_reports)}\n"
+        f"Belum Ditangani: {pending}\n"
+        f"Sudah Ditangani: {handled}\n\n"
+        f"Update: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    )
+
+    client.send_message(chat, status_msg)
+
+def handle_emergency(client, chat, sender):
+    """Menangani permintaan bantuan darurat"""
+
+    # Kirim ke semua group emergency response
+    emergency_groups = [
+        build_jid("120363xxxxx@g.us"),  # Tim SAR
+        build_jid("120363yyyyy@g.us"),  # Tim Medis
+    ]
+
+    alert_msg = (
+        f"🆘 DARURAT DARURAT DARURAT\n\n"
+        f"Dari: {sender}\n"
+        f"Waktu: {datetime.now().strftime('%H:%M:%S')}\n\n"
+        f"Mohon segera ditindaklanjuti!"
+    )
+
+    for group in emergency_groups:
+        client.send_message(group, alert_msg)
+
+    # Konfirmasi ke pengirim
+    client.send_message(chat,
+        "🆘 PERMINTAAN DARURAT DITERIMA\n\n"
+        "Tim emergency response telah dihubungi.\n"
+        "Mohon tunggu, bantuan segera datang!\n\n"
+        "Tetap tenang dan aman.")
+
+def send_shelter_info(client, chat):
+    """Mengirim informasi shelter terdekat"""
+
+    shelter_info = (
+        "🏠 LOKASI SHELTER PENGUNGSIAN\n\n"
+        "1. GOR Utama\n"
+        "   📍 Jl. Merdeka No. 123\n"
+        "   👥 Kapasitas: 500 orang\n"
+        "   ✅ Tersedia: 350 slot\n\n"
+        "2. Sekolah Dasar 01\n"
+        "   📍 Jl. Pendidikan No. 45\n"
+        "   👥 Kapasitas: 300 orang\n"
+        "   ✅ Tersedia: 180 slot\n\n"
+        "3. Balai Desa\n"
+        "   📍 Jl. Raya Desa Km. 3\n"
+        "   👥 Kapasitas: 200 orang\n"
+        "   ⚠️ Penuh\n\n"
+        "Hubungi /darurat untuk evakuasi"
+    )
+
+    client.send_message(chat, shelter_info)
+
+# Jalankan bot
+if __name__ == "__main__":
+    print("🚀 Memulai Bot Manajemen Kebencanaan...")
+    client.connect()
+    event.wait()  # Keep running</div>
+            </div>
+        </div>
+
+        <!-- Slide 8: Fitur Lanjutan -->
+        <div class="slide" id="slide8">
+            <div class="card">
+                <h2>⚡ Fitur-Fitur Lanjutan untuk Kebencanaan</h2>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🔄</div>
+                        <div class="feature-title">Multi-Session Support</div>
+                        <p>Jalankan multiple bot untuk zona berbeda secara bersamaan dengan session management</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <div class="feature-title">Async/Await Support</div>
+                        <p>Non-blocking operations untuk handling ribuan pesan simultan dengan AsyncClient</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">📸</div>
+                        <div class="feature-title">Media Handling</div>
+                        <p>Terima dan kirim foto, video, dokumen, audio untuk dokumentasi bencana</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <div class="feature-title">Polls & Interactive</div>
+                        <p>Buat polling untuk survey cepat kebutuhan dan kondisi pengungsi</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">👥</div>
+                        <div class="feature-title">Group Management</div>
+                        <p>Buat, kelola, dan update grup koordinasi otomatis per wilayah/tim</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🗄️</div>
+                        <div class="feature-title">Database Integration</div>
+                        <p>SQLite untuk deployment cepat, PostgreSQL untuk production scale</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🔔</div>
+                        <div class="feature-title">Broadcast Messages</div>
+                        <p>Kirim peringatan ke ribuan kontak dengan rate limiting otomatis</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">📍</div>
+                        <div class="feature-title">Location Sharing</div>
+                        <p>Terima dan kirim koordinat GPS untuk mapping lokasi bencana</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🔐</div>
+                        <div class="feature-title">E2E Encryption</div>
+                        <p>Semua komunikasi terenkripsi end-to-end untuk keamanan data</p>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 40px;">Integrasi dengan Sistem Lain:</h3>
+                <div class="code-block"># Integrasi dengan FastAPI untuk dashboard web
+from fastapi import FastAPI
+from neonize.aioze.client import NewAClient
+
+app = FastAPI()
+whatsapp_client = NewAClient("disaster_api")
+
+@app.on_event("startup")
+async def startup():
+    await whatsapp_client.connect()
+
+@app.post("/broadcast-alert")
+async def broadcast_alert(message: str, contacts: list):
+    """API endpoint untuk broadcast peringatan"""
+    for contact in contacts:
+        await whatsapp_client.send_message(
+            build_jid(contact),
+            f"🚨 PERINGATAN: {message}"
+        )
+    return {"status": "sent", "count": len(contacts)}</div>
+            </div>
+        </div>
+
+        <!-- Slide 9: Keunggulan -->
+        <div class="slide" id="slide9">
+            <div class="card">
+                <h2>🌟 Mengapa Neonize untuk Kebencanaan?</h2>
+
+                <div class="workflow-steps-container">
+                    <div class="workflow-diagram">
+                        <div class="workflow-step" data-step="✓">
+                            <div class="step-title">Jangkauan Luas</div>
+                            <div class="step-description">
+                                WhatsApp digunakan oleh 2+ miliar pengguna global. Hampir setiap orang memiliki WhatsApp,
+                                tidak perlu install aplikasi baru untuk menerima informasi bencana.
+                            </div>
+                        </div>
+
+                        <div class="workflow-step" data-step="✓">
+                            <div class="step-title">Real-time & Reliable</div>
+                            <div class="step-description">
+                                Pesan terkirim instant dengan konfirmasi delivery. Built-in retry mechanism dan
+                                connection resilience untuk jaringan tidak stabil saat bencana.
+                            </div>
+                        </div>
+
+                        <div class="workflow-step" data-step="✓">
+                            <div class="step-title">Mudah Digunakan</div>
+                            <div class="step-description">
+                                Interface WhatsApp yang sudah familiar. Tidak perlu training khusus untuk masyarakat,
+                                cukup kirim pesan seperti biasa.
+                            </div>
+                        </div>
+
+                        <div class="workflow-step" data-step="✓">
+                            <div class="step-title">Rich Media Support</div>
+                            <div class="step-description">
+                                Kirim foto kondisi lapangan, video dokumentasi, file PDF peta evakuasi,
+                                voice note instruksi, dan lokasi GPS.
+                            </div>
+                        </div>
+
+                        <div class="workflow-step" data-step="✓">
+                            <div class="step-title">Hemat Bandwidth</div>
+                            <div class="step-description">
+                                WhatsApp mengoptimalkan penggunaan data. Penting saat infrastruktur terbatas
+                                dan jaringan lemah pasca bencana.
+                            </div>
+                        </div>
+
+                        <div class="workflow-step" data-step="✓">
+                            <div class="step-title">Scalable & Performant</div>
+                            <div class="step-description">
+                                Arsitektur Go backend memungkinkan handling ribuan pesan per detik.
+                                PostgreSQL support untuk jutaan record data.
+                            </div>
+                        </div>
+
+                        <div class="workflow-step" data-step="✓">
+                            <div class="step-title">Open Source & Free</div>
+                            <div class="step-description">
+                                Neonize adalah open source (Apache 2.0 License). Tidak ada biaya lisensi,
+                                cocok untuk organisasi kemanusiaan dengan budget terbatas.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 10: Kesimpulan -->
+        <div class="slide" id="slide10">
+            <div class="card">
+                <h2>🎯 Kesimpulan</h2>
+
+                <div class="highlight">
+                    <strong>Neonize</strong> memberikan solusi komunikasi yang cepat, reliable, dan scalable
+                    untuk manajemen kebencanaan dengan memanfaatkan infrastruktur WhatsApp yang sudah ada.
+                </div>
+
+                <h3>Key Takeaways:</h3>
+                <div class="workflow-steps-container">
+                    <div class="workflow-diagram">
+                        <div class="workflow-step" data-step="1">
+                            <div class="step-title">Arsitektur Hybrid Python + Go</div>
+                            <div class="step-description">
+                                Menggabungkan kemudahan Python dengan performa tinggi Go (Whatsmeow)
+                            </div>
+                        </div>
+
+                        <div class="workflow-step" data-step="2">
+                            <div class="step-title">Event-Driven Real-time System</div>
+                            <div class="step-description">
+                                Handling pesan dan event secara asynchronous untuk responsivitas maksimal
+                            </div>
+                        </div>
+
+                        <div class="workflow-step" data-step="3">
+                            <div class="step-title">Comprehensive Feature Set</div>
+                            <div class="step-description">
+                                Dari text message, media, group management, hingga polls dan location sharing
+                            </div>
+                        </div>
+
+                        <div class="workflow-step" data-step="4">
+                            <div class="step-title">Production Ready</div>
+                            <div class="step-description">
+                                Database persistence, error handling, logging, dan multi-session support
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 40px;">Implementasi Praktis:</h3>
+                <div class="use-case-grid">
+                    <div class="use-case">
+                        <h4>🚀 Quick Start</h4>
+                        <ul>
+                            <li>Install: pip install neonize</li>
+                            <li>3 langkah setup client</li>
+                            <li>Scan QR code</li>
+                            <li>Bot siap dalam menit!</li>
+                        </ul>
+                    </div>
+
+                    <div class="use-case">
+                        <h4>📚 Resources</h4>
+                        <ul>
+                            <li>Dokumentasi lengkap</li>
+                            <li>Contoh kode siap pakai</li>
+                            <li>Active community</li>
+                            <li>Open source di GitHub</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 50px; padding: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; color: white;">
+                    <h2 style="color: white; border: none; margin-bottom: 20px;">🚀 Siap Digunakan untuk Penyelamatan Nyawa!</h2>
+                    <p style="font-size: 1.3em; line-height: 1.8;">
+                        Dengan <strong>Neonize</strong>, organisasi kebencanaan dapat membangun sistem komunikasi
+                        yang efektif dan scalable untuk koordinasi tim, pelaporan real-time, dan penyebaran
+                        informasi vital kepada masyarakat.
+                    </p>
+                    <p style="font-size: 1.5em; margin-top: 30px; font-weight: bold;">
+                        Komunikasi Cepat = Penyelamatan Lebih Banyak Nyawa
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="navigation">
+        <button class="nav-btn" id="prevBtn" onclick="changeSlide(-1)">← Sebelumnya</button>
+        <span class="slide-counter">
+            <span id="currentSlide">1</span> / <span id="totalSlides">10</span>
+        </span>
+        <button class="nav-btn" id="nextBtn" onclick="changeSlide(1)">Selanjutnya →</button>
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = 10;
+
+        function showSlide(n) {
+            const slides = document.querySelectorAll('.slide');
+
+            if (n > totalSlides) {
+                currentSlide = totalSlides;
+            } else if (n < 1) {
+                currentSlide = 1;
+            } else {
+                currentSlide = n;
+            }
+
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active');
+                if (index + 1 === currentSlide) {
+                    slide.classList.add('active');
+                }
+            });
+
+            document.getElementById('currentSlide').textContent = currentSlide;
+
+            // Update button states
+            document.getElementById('prevBtn').disabled = currentSlide === 1;
+            document.getElementById('nextBtn').disabled = currentSlide === totalSlides;
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function changeSlide(direction) {
+            showSlide(currentSlide + direction);
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                changeSlide(-1);
+            } else if (e.key === 'ArrowRight') {
+                changeSlide(1);
+            }
+        });
+
+        // Initialize
+        showSlide(1);
+        document.getElementById('totalSlides').textContent = totalSlides;
+    </script>
+</body>
+</html>
